@@ -1,4 +1,4 @@
-"""Entry point MLflow Project: pelatihan ulang RandomForestRegressor.
+"""Entry point MLflow Project: pelatihan ulang RandomForestRegressor 1.
 
 Model memprediksi ``return_gold`` menggunakan enam fitur lag (3 lag return gold
 dan 3 lag return CHF). Kolom ``Date`` hanya dipakai untuk mengurutkan data
