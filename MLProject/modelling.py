@@ -1,17 +1,3 @@
-"""Entry point MLflow Project: pelatihan ulang RandomForestRegressor 1.
-
-Model memprediksi ``return_gold`` menggunakan enam fitur lag (3 lag return gold
-dan 3 lag return CHF). Kolom ``Date`` hanya dipakai untuk mengurutkan data
-secara kronologis, bukan sebagai fitur. Pembagian data 80% training dan 20%
-testing dilakukan secara kronologis tanpa normalisasi maupun hyperparameter
-tuning.
-
-Script ini dapat dijalankan langsung (``python modelling.py``) maupun melalui
-``mlflow run``. Ketika dijalankan oleh MLflow Project, run aktif yang sudah
-dibuat oleh MLflow (lewat environment variable ``MLFLOW_RUN_ID``) akan dipakai
-ulang sehingga tidak terjadi konflik run.
-"""
-
 import argparse
 import inspect
 import json
