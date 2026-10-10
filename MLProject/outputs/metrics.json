@@ -1,9 +1,9 @@
 {
-  "run_id": "42d55cf6640c4198b27a7a874f2c451e",
+  "run_id": "6080523d18714e24b777729fdfbd23ec",
   "experiment_id": "1",
   "experiment_name": "workflow-ci-random-forest-gold",
-  "tracking_uri": "sqlite:////work/.ci_linux/mlflow.db",
-  "data_path": "/work/MLProject/harga_emas_dan_swiss_franc_preprocessing.csv",
+  "tracking_uri": "sqlite:////home/runner/work/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/mlflow.db",
+  "data_path": "/home/runner/work/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/MLProject/harga_emas_dan_swiss_franc_preprocessing.csv",
   "target": "return_gold",
   "features": [
     "return_gold_lag_1",

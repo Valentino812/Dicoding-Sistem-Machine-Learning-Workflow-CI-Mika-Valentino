@@ -1,4 +1,4 @@
-artifact_path: /work/mlruns/1/models/m-0296729e56c04350b2f9d46607565809/artifacts
+artifact_path: file:///home/runner/work/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/mlflow_artifacts/models/m-c3c0d67625434df895a09982b552ef32/artifacts
 flavors:
   python_function:
     env:
@@ -16,9 +16,9 @@ flavors:
     skops_trusted_types:
     - sklearn.tree._tree.Tree
 mlflow_version: 3.17.0
-model_id: m-0296729e56c04350b2f9d46607565809
-model_size_bytes: 31763615
-model_uuid: m-0296729e56c04350b2f9d46607565809
+model_id: m-c3c0d67625434df895a09982b552ef32
+model_size_bytes: 31760123
+model_uuid: m-c3c0d67625434df895a09982b552ef32
 prompts: null
-run_id: 42d55cf6640c4198b27a7a874f2c451e
-utc_time_created: '2026-10-10 18:30:26.820329'
+run_id: 6080523d18714e24b777729fdfbd23ec
+utc_time_created: '2026-10-10 18:45:49.690650'
