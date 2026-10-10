@@ -1,5 +1,5 @@
 {
-  "run_id": "6080523d18714e24b777729fdfbd23ec",
+  "run_id": "d69878520d7944de8d1f85c2cbcc1cff",
   "experiment_id": "1",
   "experiment_name": "workflow-ci-random-forest-gold",
   "tracking_uri": "sqlite:////home/runner/work/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/Dicoding-Sistem-Machine-Learning-Workflow-CI-Mika-Valentino/mlflow.db",
