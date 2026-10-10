@@ -1,0 +1,32 @@
+{
+  "run_id": "42d55cf6640c4198b27a7a874f2c451e",
+  "experiment_id": "1",
+  "experiment_name": "workflow-ci-random-forest-gold",
+  "tracking_uri": "sqlite:////work/.ci_linux/mlflow.db",
+  "data_path": "/work/MLProject/harga_emas_dan_swiss_franc_preprocessing.csv",
+  "target": "return_gold",
+  "features": [
+    "return_gold_lag_1",
+    "return_gold_lag_2",
+    "return_gold_lag_3",
+    "return_chf_lag_1",
+    "return_chf_lag_2",
+    "return_chf_lag_3"
+  ],
+  "n_estimators": 100,
+  "test_size": 0.2,
+  "n_train": 3322,
+  "n_test": 831,
+  "train": {
+    "MAE": 0.002641385326631794,
+    "MSE": 1.3749479496131265e-05,
+    "RMSE": 0.0037080290581562687,
+    "R2": 0.8504506997801387
+  },
+  "test": {
+    "MAE": 0.007608894468132447,
+    "MSE": 0.00010703969068290612,
+    "RMSE": 0.010345998776479055,
+    "R2": -0.06302425454835459
+  }
+}

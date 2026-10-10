@@ -1,0 +1,175 @@
+================================================================================
+DOKUMENTASI DOCKER HUB - Workflow-CI
+Proyek : Workflow-CI (MLflow Project + GitHub Actions)
+Model   : RandomForestRegressor  ->  target return_gold
+================================================================================
+
+Dokumen ini menjelaskan konfigurasi Docker Hub untuk workflow CI. Semua nilai
+rahasia (username opsional, token) TIDAK ditulis di file ini maupun di source
+code. Nilai tersebut diisi melalui pengaturan GitHub repository.
+
+
+1. REPOSITORY DOCKER HUB YANG HARUS DIBUAT
+--------------------------------------------------------------------------------
+Buat satu repository (Public atau Private) di https://hub.docker.com/ dengan
+nama:
+
+    random-forest-return-gold
+
+Repository harus berada di bawah akun Docker Hub Anda sehingga nama image
+lengkapnya menjadi:
+
+    <DOCKERHUB_USERNAME>/random-forest-return-gold
+
+Contoh (jika username Docker Hub Anda "mikavalentino"):
+
+    mikavalentino/random-forest-return-gold
+
+Catatan: repository Docker Hub TIDAK dibuat otomatis oleh workflow. Workflow
+hanya melakukan push ke repository tersebut setelah Anda membuatnya dan mengisi
+konfigurasi pada bagian 3 dan 4.
+
+
+2. NAMA IMAGE DAN TAG YANG DIGUNAKAN
+--------------------------------------------------------------------------------
+Workflow membangun image dengan perintah resmi MLflow (bukan Dockerfile
+pengganti) dan memberi dua tag:
+
+    <DOCKERHUB_USERNAME>/random-forest-return-gold:sha-<7 karakter commit SHA>
+    <DOCKERHUB_USERNAME>/random-forest-return-gold:latest
+
+Contoh:
+
+    mikavalentino/random-forest-return-gold:sha-a1b2c3d
+    mikavalentino/random-forest-return-gold:latest
+
+Perintah build yang dipakai:
+
+    mlflow models build-docker \
+      --model-uri "runs:/<RUN_ID>/model" \
+      --name "<DOCKERHUB_USERNAME>/random-forest-return-gold:<TAG>"
+
+Perintah dijalankan setelah model tersimpan pada MLflow tracking store yang
+sama dengan proses pelatihan. Workflow menetapkan:
+
+    MLFLOW_TRACKING_URI = sqlite:///<workspace>/mlflow.db
+    artifact root       = file:///<workspace>/mlflow_artifacts
+
+MLflow CLI dan proses pelatihan memakai tracking store serta artifact root yang
+sama, sehingga URI "runs:/<RUN_ID>/model" dapat ditemukan saat build image.
+
+
+3. GITHUB ACTIONS VARIABLES YANG DIPERLUKAN
+--------------------------------------------------------------------------------
+GitHub repository -> Settings -> Secrets and variables -> Actions ->
+tab "Variables" -> New repository variable
+
+    Name : DOCKERHUB_USERNAME
+    Value: <username Docker Hub Anda>
+
+Variabel ini bersifat non-rahasia dan dipakai untuk menyusun nama image.
+
+
+4. GITHUB ACTIONS SECRETS YANG DIPERLUKAN
+--------------------------------------------------------------------------------
+GitHub repository -> Settings -> Secrets and variables -> Actions ->
+tab "Secrets" -> New repository secret
+
+    Name : DOCKERHUB_TOKEN
+    Value: <Access Token Docker Hub dengan izin Read & Write>
+
+Cara membuat token (jangan pakai password akun):
+  1. Login ke https://hub.docker.com/
+  2. Account Settings -> Security -> New Access Token
+  3. Beri nama token dan pilih permission "Read & Write"
+  4. Salin token, lalu simpan sebagai secret DOCKERHUB_TOKEN pada GitHub.
+  5. Token hanya ditampilkan sekali. JANGAN menuliskannya di file repository,
+     workflow YAML, maupun source code.
+
+Catatan: Secret tidak boleh direferensikan langsung pada blok `if:` di
+workflow. Karena itu workflow membaca variabel/secret melalui `env`, lalu
+menentukan boleh/tidaknya build & push. Jika salah satu belum diisi, tahap
+Docker dilewati dengan warning dan tidak menggagalkan tahap pelatihan serta
+penyimpanan artefak.
+
+
+5. CARA MENJALANKAN BUILD DAN PUSH
+--------------------------------------------------------------------------------
+A. MELALUI WORKFLOW GITHUB ACTIONS (otomatis)
+   Workflow `.github/workflows/ci.yml` berjalan saat:
+     - push ke branch `main` yang mengubah file sumber/konfigurasi, atau
+     - dijalankan manual lewat workflow_dispatch.
+
+   Urutan tahap:
+     1)  checkout repository
+     2)  setup Python + Miniconda (Python 3.11)
+     3)  install MLflow pada environment runner
+     4)  inisialisasi tracking store (sqlite) dan experiment
+     5)  mlflow run ./MLProject --env-manager=conda
+     6)  verifikasi outputs (run id + metrik)
+     7)  baca RUN_ID dari MLProject/outputs/mlflow_run_id.txt
+     8)  unduh artefak model (mlflow.artifacts.download_artifacts)
+     9)  commit & push outputs ke repository (GITHUB_TOKEN)
+     10) mlflow models build-docker + tag latest
+     11) docker login (docker/login-action)
+     12) docker push tag sha + latest
+
+   Menjalankan manual: buka tab "Actions" -> pilih workflow
+   "MLflow CI - Random Forest Gold Return" -> "Run workflow" -> pilih branch
+   `main` -> Run workflow.
+
+B. SECARA LOKAL (opsional, untuk pengujian)
+   Prasyarat: Python 3.11 + MLflow + (opsional Conda) + Docker Desktop aktif.
+
+   1) Latih model dan simpan run ke tracking store lokal (SQLite):
+        # dari dalam folder Workflow-CI (Windows CMD)
+        set "MLFLOW_TRACKING_URI=sqlite:///%CD%/mlflow.db"
+        mlflow run ./MLProject --env-manager=local --experiment-name workflow-ci-random-forest-gold
+      Catatan: `--env-manager=local` memakai Python saat ini; gunakan
+      `--env-manager=conda` bila Conda tersedia.
+
+   2) Ambil RUN_ID:
+        type MLProject\outputs\mlflow_run_id.txt
+
+   3) Bangun image (samakan tracking store agar CLI menemukan run):
+        set "MLFLOW_TRACKING_URI=sqlite:///%CD%/mlflow.db"
+        mlflow models build-docker ^
+          --model-uri "runs:/<RUN_ID>/model" ^
+          --name "<DOCKERHUB_USERNAME>/random-forest-return-gold:local"
+
+   4) Verifikasi image:
+        docker image inspect <DOCKERHUB_USERNAME>/random-forest-return-gold:local
+
+   5) Login dan push (jika token tersedia):
+        docker login -u <DOCKERHUB_USERNAME>
+        docker tag <DOCKERHUB_USERNAME>/random-forest-return-gold:local ^
+                   <DOCKERHUB_USERNAME>/random-forest-return-gold:latest
+        docker push <DOCKERHUB_USERNAME>/random-forest-return-gold:local
+        docker push <DOCKERHUB_USERNAME>/random-forest-return-gold:latest
+
+
+6. LOKASI ARTEFAK MODEL DALAM REPOSITORY
+--------------------------------------------------------------------------------
+Hasil pelatihan disimpan pada:
+
+    MLProject/outputs/model/MLmodel          <- model MLflow (artefak resmi)
+    MLProject/outputs/model/...              <- file model pendukung
+    MLProject/outputs/mlflow_run_id.txt      <- run id hasil pelatihan terbaru
+    MLProject/outputs/metrics.json           <- ringkasan metrik training/testing
+
+Tahap commit pada workflow hanya menambahkan folder MLProject/outputs. Trigger
+push dibatasi pada file sumber/konfigurasi, sehingga commit hasil output tidak
+memicu workflow baru (ditambah pesan commit "[skip ci]").
+
+
+7. CATATAN STATUS
+--------------------------------------------------------------------------------
+- Repository Docker Hub `random-forest-return-gold` perlu dibuat oleh pengguna.
+- Variable DOCKERHUB_USERNAME dan secret DOCKERHUB_TOKEN perlu diisi pengguna.
+- Selama keduanya belum tersedia, tahap Docker (build/push) DILEWATI oleh
+  workflow; image TIDAK/tidak diunggah. Tahap pelatihan dan penyimpanan
+  artefak tetap berjalan.
+- Jangan menyatakan image sudah berhasil diunggah sebelum tahap push pada
+  workflow benar-benar sukses (diverifikasi pada log Actions dan halaman
+  repository Docker Hub).
+================================================================================

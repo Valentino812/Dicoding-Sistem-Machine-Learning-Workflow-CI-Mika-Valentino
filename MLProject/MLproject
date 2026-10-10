@@ -1,0 +1,17 @@
+name: Workflow-CI-RandomForest
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      data_path:
+        type: string
+        default: harga_emas_dan_swiss_franc_preprocessing.csv
+      output_dir:
+        type: string
+        default: outputs
+      n_estimators:
+        type: int
+        default: 100
+    command: "python modelling.py --data-path {data_path} --output-dir {output_dir} --n-estimators {n_estimators}"

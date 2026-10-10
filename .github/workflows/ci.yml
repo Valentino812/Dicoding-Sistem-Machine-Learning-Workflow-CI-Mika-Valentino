@@ -1,0 +1,188 @@
+name: MLflow CI - Random Forest Gold Return
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "MLProject/modelling.py"
+      - "MLProject/conda.yaml"
+      - "MLProject/MLproject"
+      - "MLProject/harga_emas_dan_swiss_franc_preprocessing.csv"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  MLFLOW_TRACKING_URI: sqlite:///${{ github.workspace }}/mlflow.db
+  MLFLOW_EXPERIMENT_NAME: workflow-ci-random-forest-gold
+  IMAGE_REPO: random-forest-return-gold
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  train-and-publish:
+    name: Retrain, save artifacts, build and push Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Miniconda (Python 3.11)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: "3.11"
+          activate-environment: mlflow-ci
+          auto-update-conda: true
+          channels: conda-forge
+
+      - name: Install MLflow for the runner environment
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install "mlflow>=2.16,<4"
+          python -m mlflow --version
+          docker --version
+
+      - name: Initialize MLflow tracking store and experiment
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          import mlflow
+
+          uri = os.environ["MLFLOW_TRACKING_URI"]
+          name = os.environ["MLFLOW_EXPERIMENT_NAME"]
+          workspace = os.environ["GITHUB_WORKSPACE"]
+          artifact_dir = os.path.join(workspace, "mlflow_artifacts")
+          os.makedirs(artifact_dir, exist_ok=True)
+          artifact_root = Path(artifact_dir).resolve().as_uri()
+
+          mlflow.set_tracking_uri(uri)
+          if mlflow.get_experiment_by_name(name) is None:
+              mlflow.create_experiment(name, artifact_location=artifact_root)
+          print("Tracking URI  :", uri)
+          print("Experiment    :", mlflow.get_experiment_by_name(name).name)
+          print("Artifact root :", artifact_root)
+          PY
+
+      - name: Run MLflow Project (retrain model)
+        run: |
+          set -euo pipefail
+          python -m mlflow run ./MLProject \
+            --env-manager=conda \
+            --experiment-name "$MLFLOW_EXPERIMENT_NAME"
+
+      - name: Verify training outputs exist
+        run: |
+          set -euo pipefail
+          test -f MLProject/outputs/mlflow_run_id.txt
+          test -f MLProject/outputs/metrics.json
+          echo "Run ID  : $(cat MLProject/outputs/mlflow_run_id.txt)"
+          echo "Metrics :"
+          cat MLProject/outputs/metrics.json
+
+      - name: Read run ID from training output
+        run: |
+          set -euo pipefail
+          RUN_ID="$(tr -d '[:space:]' < MLProject/outputs/mlflow_run_id.txt)"
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::MLProject/outputs/mlflow_run_id.txt is empty"
+            exit 1
+          fi
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "Resolved RUN_ID=$RUN_ID"
+
+      - name: Download model artifact from the latest MLflow run
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import shutil
+
+          import mlflow
+
+          run_id = os.environ["RUN_ID"]
+          dst = os.path.join("MLProject", "outputs")
+          model_dir = os.path.join(dst, "model")
+          if os.path.isdir(model_dir):
+              shutil.rmtree(model_dir)
+          path = mlflow.artifacts.download_artifacts(
+              f"runs:/{run_id}/model", dst_path=dst
+          )
+          print("Model artifact downloaded to:", path)
+          if not os.path.isfile(os.path.join(model_dir, "MLmodel")):
+              raise SystemExit("MLmodel not found after download")
+          PY
+          test -f MLProject/outputs/model/MLmodel
+
+      - name: Commit and push training outputs to repository
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add MLProject/outputs
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore(ci): update trained model artifacts [skip ci]"
+            git push
+            echo "Training outputs committed and pushed."
+          fi
+
+      - name: Resolve Docker Hub configuration
+        id: docker
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "image=${DOCKERHUB_USERNAME}/${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
+            echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub configuration detected."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::DOCKERHUB_USERNAME variable or DOCKERHUB_TOKEN secret is not set. Docker build/push is skipped."
+          fi
+
+      - name: Build Docker image with mlflow models build-docker
+        if: steps.docker.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.docker.outputs.image }}"
+          TAG="${{ steps.docker.outputs.tag }}"
+          python -m mlflow models build-docker \
+            --model-uri "runs:/${RUN_ID}/model" \
+            --name "${IMAGE}:${TAG}"
+          docker tag "${IMAGE}:${TAG}" "${IMAGE}:latest"
+          docker image inspect "${IMAGE}:${TAG}" > /dev/null
+          docker image inspect "${IMAGE}:latest" > /dev/null
+          echo "Built and verified ${IMAGE}:${TAG} and ${IMAGE}:latest"
+
+      - name: Login to Docker Hub
+        if: steps.docker.outputs.available == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image to Docker Hub
+        if: steps.docker.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.docker.outputs.image }}"
+          TAG="${{ steps.docker.outputs.tag }}"
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:latest"
+          echo "Pushed ${IMAGE}:${TAG} and ${IMAGE}:latest"

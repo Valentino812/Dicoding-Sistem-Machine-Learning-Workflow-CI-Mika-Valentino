@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.mlruns/
+mlruns/
+MLProject/mlruns/
+mlflow_artifacts/
+*.db
+mlflow.db
+MLProject/mlruns.db
+.pytest_cache/
