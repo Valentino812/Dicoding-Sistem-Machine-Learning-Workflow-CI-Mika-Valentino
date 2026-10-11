@@ -35,9 +35,23 @@ FEATURE_COLUMNS = [
     "return_gold_lag_1",
     "return_gold_lag_2",
     "return_gold_lag_3",
+    "return_gold_lag_4",
+    "return_gold_lag_5",
+    "return_gold_lag_6",
+    "return_gold_lag_7",
+    "return_gold_lag_8",
+    "return_gold_lag_9",
+    "return_gold_lag_10",
     "return_chf_lag_1",
     "return_chf_lag_2",
     "return_chf_lag_3",
+    "return_chf_lag_4",
+    "return_chf_lag_5",
+    "return_chf_lag_6",
+    "return_chf_lag_7",
+    "return_chf_lag_8",
+    "return_chf_lag_9",
+    "return_chf_lag_10",
 ]
 
 TEST_SIZE = 0.2
